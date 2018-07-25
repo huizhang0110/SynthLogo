@@ -59,7 +59,7 @@ def main(args):
                     random_add_logo(merge_helper)
                 # merge_helper.show_result()
                 img_save_path = os.path.join(img_save_dir, '{}.jpg'.format(count))
-                xml_save_path = os.path.join(xml_save_dir, '{}.jpg'.format(count))
+                xml_save_path = os.path.join(xml_save_dir, '{}.xml'.format(count))
                 merge_helper.save_result(img_save_path, xml_save_path)
             except Exception as e:
                 continue
