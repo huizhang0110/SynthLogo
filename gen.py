@@ -25,17 +25,17 @@ def main(args):
             color = all_colors[choice_idx][0]
             logo_image.change_color(color)
 
-        if 'rotate' in operations:
+        if 'rotate' in operations and np.random.randint(0, 100) < 50:
             logo_image.rotate(np.random.randint(-100, 100))
 
-        if 'perspective' in operations:
+        if 'perspective' in operations and np.random.randint(0, 100) < 50:
             logo_image.perspective()
 
         if 'scale' in operations:
             bg_h, bg_w = merge_helper.bg_shape[:2]
             logo_h, logo_w = logo_image.logo_shape[:2]
             # Truncated normal distribution
-            scale_ratio = min(bg_h / logo_h, bg_w / logo_w) * np.clip(abs(np.random.normal()), 0.1, 0.5)
+            scale_ratio = min(bg_h / logo_h, bg_w / logo_w) * np.clip(abs(np.random.normal()), 0.05, 0.4)
             logo_image.scale(scale_ratio, scale_ratio)
 
         merge_helper.add_logo(logo_image)
@@ -64,6 +64,8 @@ def main(args):
             except Exception as e:
                 continue
             count += 1
+            if count % 1000 == 0:
+                print('Running: ', count)
 
 
 if __name__ == '__main__':
