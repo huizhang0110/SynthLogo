@@ -11,11 +11,20 @@ class LogoImage:
     COLOR_BLACK = (0, 0, 0)
     COLOR_RED = (0, 0, 255)
 
-    def __init__(self, logo_path):
+    def __init__(self, logo_path, logo_name):
         # Update these values each time you add a new transformation
         self.logo = cv2.imread(logo_path, 1)
+        self._logo_name = logo_name
         self.h, self.w, self.c = self.logo.shape
         self.loc_points = [[0, 0], [self.w - 1, 0], [self.w - 1, self.h - 1], [0, self.h - 1]]
+
+    @property
+    def logo_name(self):
+        return self._logo_name
+
+    @property
+    def logo_shape(self):
+        return self.logo.shape
 
     def change_color(self, color=COLOR_BLACK):
         image_copy = self.logo.copy()
@@ -35,8 +44,8 @@ class LogoImage:
             pts1 = np.float32(self.loc_points)
             pts2 = []
             for x, y in self.loc_points:
-                x += np.random.uniform(-0.2, 0.2) * self.w
-                y += np.random.uniform(-0.2, 0.2) * self.h
+                x += np.random.uniform(-0.2, 0.2) * self.w * np.random.normal()
+                y += np.random.uniform(-0.2, 0.2) * self.h * np.random.normal()
                 pts2.append([np.clip(int(x), 0, 1000), np.clip(int(y), 0, 1000)])
             self.loc_points = pts2
             pts2 = np.float32(pts2)
@@ -52,7 +61,7 @@ class LogoImage:
 
     def rotate(self, angle=None):
         if angle is None:
-            angle = np.random.randint(0, 360)
+            angle = np.random.randint(-120, 120)
         h, w = self.logo.shape[:2]
         cx, cy = w // 2, h // 2
         M = cv2.getRotationMatrix2D((cx, cy), angle, scale=1.0)
@@ -75,7 +84,7 @@ class LogoImage:
 
     def _get_mask(self):
         logo_gray = cv2.cvtColor(self.logo, cv2.COLOR_BGR2GRAY)
-        _, logo_mask = cv2.threshold(logo_gray, 200, 256, cv2.THRESH_BINARY)
+        _, logo_mask = cv2.threshold(logo_gray, 220, 255, cv2.THRESH_BINARY)
         return logo_mask
 
     def get_output(self):
@@ -92,11 +101,16 @@ class LogoImage:
 
 class ImageMergeHelper:
 
-    def __init__(self, background_image_path):
+    def __init__(self, background_image_path, debug=False):
         self.image_bg = cv2.imread(background_image_path, 1)
         self.annotations = []
+        self._debug = debug
 
-    def add_logo(self, logo_image_obj, logo_name, random_place=True, place_points=(0, 0)):
+    @property
+    def bg_shape(self):
+        return self.image_bg.shape
+
+    def add_logo(self, logo_image_obj, random_place=True, place_points=(0, 0)):
         assert isinstance(logo_image_obj, LogoImage), '{} is not a LogoImage object'
         logo, loc_point, mask = logo_image_obj.get_output()
         mask_not = cv2.bitwise_not(mask)
@@ -115,7 +129,13 @@ class ImageMergeHelper:
         pts = np.array(loc_point)
         xmin, ymin = int(min(pts[:, 0])) + start_x, int(min(pts[:, 1])) + start_y
         xmax, ymax = int(max(pts[:, 0])) + start_x, int(max(pts[:, 1])) + start_y
-        self.annotations.append({'xmin': xmin, 'ymin': ymin, 'xmax': xmax, 'ymax': ymax, 'logo_name': logo_name})
+
+        if self._debug:
+            cv2.rectangle(self.image_bg, (xmin, ymin), (xmax, ymax), (0, 255, 0), thickness=1)
+
+        self.annotations.append({
+            'xmin': xmin, 'ymin': ymin, 'xmax': xmax, 'ymax': ymax,
+            'logo_name': logo_image_obj.logo_name})
         return self
 
     def save_result(self, image_path, annotation_xml_path):
