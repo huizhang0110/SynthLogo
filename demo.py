@@ -1,14 +1,19 @@
-from utils import LogoImage, ImageMergeHelper
+from utils import LogoPngImage, ImageMergeHelper
 import numpy as np
 
-merge_helper = ImageMergeHelper(background_image_path='./data/bg/test.jpg')
+merge_helper = ImageMergeHelper('./data/bg/test.jpg', debug=True)
 
-logo = LogoImage(
-    './data/logo/adidas/1.jpg').scale(scale_x=0.5, scale_y=0.5).rotate(45).change_color((0, 0, 255)).perspective()
-merge_helper.add_logo(logo, logo_name='adidas')
-logo = LogoImage(
-    './data/logo/nike/1.jpg').scale().rotate(np.random.randint(0, 100)).perspective()
-merge_helper.add_logo(logo, logo_name='nike')
+logo = LogoPngImage(
+    logo_path='./data/logo/adidas/adidas_1.png',
+    logo_name='adidas'
+).scale(scale_x=0.5, scale_y=0.5).rotate(45).perspective()
+merge_helper.add_logo(logo)
+
+logo = LogoPngImage(
+    logo_path='./data/logo/supreme/supreme_1.png',
+    logo_name='nike'
+).rotate(np.random.randint(0, 100)).perspective()
+merge_helper.add_logo(logo)
 
 merge_helper.save_result('./output.jpg', './output.xml')
 merge_helper.show_result()
