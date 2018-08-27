@@ -1,85 +1,80 @@
 import os
 import argparse
 from utils import ImageMergeHelper, LogoPngImage
-from logo_use_config import *
 import numpy as np
 
 
-def main(args):
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--logo_dir", type=str, default="./data/logo", help="") 
+    parser.add_argument("--bg_dir", type=str, default="./data/bg", help="")
+    parser.add_argument("--save_dir", type=str, default="./output", help="")
+    parser.add_argument("--epoch", type=int, default=1, help="Background images usage time.")
+    return parser.parse_args()
 
-    def random_add_logo(merge_helper):
-        logo_name = np.random.choice(list(logo_use_config.keys()))
-        logo_images_name = list(logo_use_config[logo_name].keys())
-        p = [v[0] for k, v in logo_use_config[logo_name].items()]
-        p = [x / sum(p) for x in p]
-        use_logo_image_name = np.random.choice(logo_images_name, p=p)
-        use_logo_path = os.path.join(args.logo_dir, logo_name, use_logo_image_name)
-        print(use_logo_path)
-        logo_image = LogoPngImage(use_logo_path, logo_name)
-        operations = logo_use_config[logo_name][use_logo_image_name][1:]
 
-        if 'change_color' in operations:
-            p = [x[1] for x in all_colors]
-            p = [x / sum(p) for x in p]
-            choice_idx = np.random.choice(len(all_colors), 1, p=p)[0]
-            color = all_colors[choice_idx][0]
-            logo_image.change_color(color)
+def synth_logo_images(args):
+    logo_png_dict = {}
+    for root, dirs, files in os.walk(args.logo_dir):
+        for filename in files:
+            filepath = os.path.join(root, filename)
+            logo_name = filepath.split("/")[-2]
+            if logo_name in logo_png_dict:
+                logo_png_dict[logo_name].append(filepath)
+            else:
+                logo_png_dict[logo_name] = [filepath]
 
-        if 'rotate' in operations:
-            logo_image.rotate(np.random.randint(-100, 100))
+    logo_classes = list(logo_png_dict.keys())
 
-        if 'perspective' in operations:
-            logo_image.perspective()
+    def add_logo(merge_helper):
+        use_logo_name = np.random.choice(logo_classes)
+        use_logo_path = np.random.choice(logo_png_dict[use_logo_name])
 
-        if 'scale' in operations:
-            bg_h, bg_w = merge_helper.bg_shape[:2]
-            logo_h, logo_w = logo_image.image.shape[:2]
-            # Truncated normal distribution
-            scale_range = [0.02, 0.5]
-            scale_ratio = scale_range[0] + (scale_range[1] - scale_range[0]) * np.random.random()
-            max_ratio = min(bg_h / logo_h, bg_w / logo_w)
-            if scale_ratio > max_ratio:
-                scale_ratio *= max_ratio
-            logo_image.scale(scale_ratio, scale_ratio)
+        logo_image = LogoPngImage(use_logo_path, use_logo_name)
+
+        # change_color
+        # logo_image.change_color()
+
+        # Scale
+        bg_h, bg_w = merge_helper.bg_shape[:2]
+        logo_h, logo_w = logo_image.image.shape[:2]
+        scale_range = [0.2, 0.5]
+        scale_ratio = scale_range[0] + (scale_range[1] - scale_range[0]) * np.random.random()  
+        ratio_h = scale_ratio * bg_h / logo_h
+        ratio_w = scale_ratio * bg_w / logo_w
+        logo_image.scale(ratio_w, ratio_h)
+        # perspective
+        # logo_image.perspective()
+        # rotate
+        # logo_image.rotate(np.random.randint(0, 360))
 
         merge_helper.add_logo(logo_image)
 
-    xml_save_dir = os.path.join(args.save_dir, 'Annotations')
-    img_save_dir = os.path.join(args.save_dir, 'JPEGImages')
-    if not os.path.exists(xml_save_dir):
-        os.makedirs(xml_save_dir, exist_ok=True)
+
+
+    xml_save_dir = os.path.join(args.save_dir, "Annotations")
+    img_save_dir = os.path.join(args.save_dir, "JPEGImages")
+
     if not os.path.exists(img_save_dir):
-        os.makedirs(img_save_dir, exist_ok=True)
+        os.makedirs(img_save_dir)
+    if not os.path.exists(xml_save_dir):
+        os.makedirs(xml_save_dir)
 
     count = 0
     for i in range(args.epoch):
         for bg_filename in os.listdir(args.bg_dir):
             bg_path = os.path.join(args.bg_dir, bg_filename)
-            try:
-                # merge_helper = ImageMergeHelper(bg_path, debug=True, add_erode=False)
-                merge_helper = ImageMergeHelper(bg_path)
-                num_logo_per_bg = np.random.randint(1, 4)
-                for i in range(num_logo_per_bg):
-                    random_add_logo(merge_helper)
-                # merge_helper.show_result()
-                img_save_path = os.path.join(img_save_dir, '{}.jpg'.format(count))
-                xml_save_path = os.path.join(xml_save_dir, '{}.xml'.format(count))
-                merge_helper.save_result(img_save_path, xml_save_path)
-            except Exception as e:
-                print(e)
-                continue
+            merge_helper = ImageMergeHelper(bg_path)
+            num_logo_per_bg = np.random.randint(1, 5)
+            for i in range(num_logo_per_bg):
+                add_logo(merge_helper)
+            img_save_path = os.path.join(img_save_dir, "{}.jpg".format(count))
+            xml_save_path = os.path.join(xml_save_dir, "{}.xml".format(count))
+            merge_helper.save_result(img_save_path, xml_save_path)
             count += 1
+    print("Finished gen {} images".format(count))
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--logo_dir', type=str, default='./data/logo',
-                        help='The directory containing logo images and a using probability  file about each logo.')
-    parser.add_argument('--bg_dir', type=str, default='./data/bg',
-                        help='The directory containing background images.')
-    parser.add_argument('--save_dir', type=str, default='./output',
-                        help='The directory containing pascal-voc format synthetic data.')
-    parser.add_argument('--epoch', type=int, default=1,
-                        help='Background images usage time.')
-    args = parser.parse_args()
-    main(args)
+if __name__ == "__main__":
+    synth_logo_images(get_args())
+
